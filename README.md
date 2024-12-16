@@ -1,2 +1,1 @@
-# My PWA (Progressive Web App)
-
+# my_app
