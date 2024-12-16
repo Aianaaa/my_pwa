@@ -1,163 +1,75 @@
-const cacheName = 'travelboss-cache-v1';
-const filesToCache = [
+const CACHE_NAME = 'travelboss-cache-v1';
+const FILES_TO_CACHE = [
   '/',
   '/index.html',
   '/offline.html',
-  '/about.html',             
+  '/about.html',
   '/contact.html',
-  '/blog.html',             
-  '/gallery.html',         
+  '/gallery.html',
   '/css/style.css',
-  '/css/responsive.css',  
-  '/css/utility.css',             
-  '/css/normalize.css',                        
-  '/font/fonts.css',           
+  '/css/responsive.css',
+  '/css/utility.css',
+  '/css/normalize.css',
+  'assets/font/fonts.css',
   '/js/script.js',
-  '/icons/app-icon-96-96.png',
-  '/icons/app-icon-144-144.png',
-  '/icons/app-icon-256-256.png',
-  '/icons/app-icon-512-512.png', 
-  '/videos/video-section.mp4',
-  '/images/about-img.jpg',
-  '/manifest.json',          
-  '/sw.js'       
+  'assets/icons/app-icon-96-96.png',
+  'assets/icons/app-icon-144-144.png',
+  'assets/icons/app-icon-256-256.png',
+  'assets/icons/app-icon-512-512.png',
+  'assets/videos/video-section.mp4',
+  'assets/images/about-img.jpg',
+  '/manifest.json',
 ];
 
-//Install SW
+// Installing the Service Worker and pre-caching files
 self.addEventListener('install', (event) => {
-    console.log('ServiceWorker installed')
-});
-
-self.addEventListener('activate', (event) => {
-    console.log('ServiceWorker activated');
-
-    event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames.filter((name) => name !== cacheName).map((name) =>caches.delete(name))        
-        )
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log('Caching files...');
+      return cache.addAll(FILES_TO_CACHE);
     })
-)
-})
-
-//Network First
-self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        fetch(event.request)
-        .then((response) => {
-            return caches.open(cacheName).then((cache) => {
-                cache.put(event.request, response.clone());
-                return response;
-            })
-        }).catch(() => {
-            return caches.match(event.request)
-        })
-    )
-})
-
-// 1. Cache First (cache falling back to network)
-
-self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        caches.match(event.request)
-        .then((cachedResponse) => {
-            if (cachedResponse) {
-                return cachedResponse;
-            }
-
-            return fetch(event.request)
-            .then((networkResponse) => {
-                return caches.open(cacheName)
-                .then((cache) => {
-                    cache.put(event.request, networkResponse.clone());
-                    return networkResponse;
-                });
-            });
-        })
-    );
+  );
+  self.skipWaiting(); // Immediately activate the new Service Worker
 });
 
-//2.Network First
+// Activating the Service Worker and removing outdated caches
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) =>
+      Promise.all(
+        cacheNames
+          .filter((name) => name !== CACHE_NAME) // Identify old caches
+          .map((name) => caches.delete(name)) // Delete old caches
+      )
+    )
+  );
+  self.clients.claim(); // Make the new Service Worker active for all clients
+});
 
+// Handling fetch events
 self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        fetch(event.request)
-        .then((response) => {
-            return caches.open(cacheName).then((cache) => {
-                cache.put(event.request, response.clone());
-                return response;
-            });
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      // If the request is found in the cache, return it
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+
+      // If not found in the cache, attempt to fetch it from the network
+      return fetch(event.request)
+        .then((networkResponse) => {
+          // Cache the new resource and return it
+          return caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, networkResponse.clone());
+            return networkResponse;
+          });
         })
         .catch(() => {
-            return caches.match(event.request);
-        })
-    );
-});
-
-// 3.Cache only
-
-self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        caches.match(event.request)
-    );
-});
-
-//4.Network only
-
-self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        fetch(event.request)
-    );
-});
-
-//5. Stale while revalidate
-
-self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        caches.open(cacheName).then((cache) => {
-            return cache.match(event.request).then((cachedResponse) => {
-                const fetchPromise = fetch(event.request).then((networkResponse) => {
-                    cache.put(event.request, networkResponse.clone());
-                    return networkResponse;
-                });
-                return cachedResponse || fetchPromise;
-            });
-        })
-    );
-});
-
-//6.Offline Fallback
-
-self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        fetch(event.request).catch(() => {
+          // If the network request fails, return the offline page for navigation requests
+          if (event.request.mode === 'navigate') {
             return caches.match('/offline.html');
-        })
-    );
-});
-
-//7.Custom Strategy
-
-self.addEventListener('fetch', (event) => {
-    const url = new URL(event.request.url);
-    if (url.origin === location.origin) {
-        event.respondWith(
-            caches.match(event.request).then((response) => {
-                return response || fetch(event.request);
-            })
-        );
-    } else {
-        event.respondWith(
-            fetch(event.request)
-            .then((response) => {
-                return caches.open(cacheName).then((cache) => {
-                    cache.put(event.request, response.clone());
-                    return response;
-                });
-            })
-            .catch(() => {
-                return caches.match(event.request);
-            })
-        );
-    }
+          }
+        });
+    })
+  );
 });
