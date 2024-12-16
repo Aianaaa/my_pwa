@@ -1,4 +1,27 @@
 const cacheName = 'travelboss-cache-v1';
+const filesToCache = [
+  '/',
+  '/index.html',
+  '/offline.html',
+  '/about.html',             
+  '/contact.html',
+  '/blog.html',             
+  '/gallery.html',         
+  '/css/style.css',
+  '/css/responsive.css',  
+  '/css/utility.css',             
+  '/css/normalize.css',                        
+  '/font/fonts.css',           
+  '/js/script.js',
+  '/icons/app-icon-96-96.png',
+  '/icons/app-icon-144-144.png',
+  '/icons/app-icon-256-256.png',
+  '/icons/app-icon-512-512.png', 
+  '/videos/video-section.mp4',
+  '/images/about-img.jpg',
+  '/manifest.json',          
+  '/sw.js'       
+];
 
 //Install SW
 self.addEventListener('install', (event) => {

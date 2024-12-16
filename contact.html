@@ -184,6 +184,11 @@
         <!-- end of footer -->
 
         <!-- js -->
+        <script>
+            if (typeof navigator.serviceWorker !== 'undefined') {
+              navigator.serviceWorker.register('sw.js')
+            }
+          </script>
         <script src = "js/script.js"></script>
         <script>
             
