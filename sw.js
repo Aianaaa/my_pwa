@@ -1,53 +1,64 @@
-// This is the service worker with the combined offline experience (Offline page + Offline copy of pages)
+const CACHE_NAME = "tripboss-cache-v1";
+const urlsToCache = [
+  '/',
+  '/index.html',
+  '/about.html',
+  '/contact.html',
+  '/gallery.html',
+  '/blog.html',
+  '/css/style.css',
+  '/css/normalize.css',
+  '/css/utility.css',
+  '/css/responsive.css',
+  '/images/featured-reo-de-janeiro-brazil.jpg',
+  '/images/featured-north-bondi-australia.jpg',
+  '/images/featured-berlin-germany.jpg',
+  '/images/featured-khwaeng-wat-arun-thailand.jpg',
+  '/images/featured-rome-italy.jpg',
+  '/images/featured-fuvahmulah-maldives.jpg',
+  '/videos/video-section.mp4',
+  '/js/script.js',
+  '/fonts/fonts.css',
+  '/offline.html' // Страница для оффлайн-режима
+];
 
-const CACHE = "pwabuilder-offline-page";
-
-importScripts('https://storage.googleapis.com/workbox-cdn/releases/5.1.2/workbox-sw.js');
-
-// TODO: replace the following with the correct offline fallback page i.e.: const offlineFallbackPage = "offline.html";
-const offlineFallbackPage = "index.html";
-
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") {
-    self.skipWaiting();
-  }
-});
-
-self.addEventListener('install', async (event) => {
+// Устанавливаем кэш
+self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE)
-      .then((cache) => cache.add(offlineFallbackPage))
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(urlsToCache);
+    })
   );
 });
 
-if (workbox.navigationPreload.isSupported()) {
-  workbox.navigationPreload.enable();
-}
+// Активация сервиса
+self.addEventListener('activate', (event) => {
+  const cacheWhitelist = [CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (!cacheWhitelist.includes(cacheName)) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
 
-workbox.routing.registerRoute(
-  new RegExp('/*'),
-  new workbox.strategies.StaleWhileRevalidate({
-    cacheName: CACHE
-  })
-);
-
+// Обработка запросов
 self.addEventListener('fetch', (event) => {
-  if (event.request.mode === 'navigate') {
-    event.respondWith((async () => {
-      try {
-        const preloadResp = await event.preloadResponse;
-        if (preloadResp) {
-          return preloadResp;
-        }
-
-        const networkResp = await fetch(event.request);
-        return networkResp;
-      } catch (error) {
-
-        const cache = await caches.open(CACHE);
-        const cachedResp = await cache.match(offlineFallbackPage);
-        return cachedResp;
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse; // Возвращаем кэшированную версию
       }
-    })());
-  }
+
+      return fetch(event.request).catch(() => {
+        // Если сеть недоступна, показываем оффлайн-страницу
+        return caches.match('/offline.html');
+      });
+    })
+  );
 });
