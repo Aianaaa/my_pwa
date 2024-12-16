@@ -1,53 +1,56 @@
-const staticCacheName = 's-app-v3'
-const dynamicCacheName = 'd-app-v3'
+const CACHE_NAME = 'tripboss-cache-v1';
+const urlsToCache = [
+  '/',
+  '/index.html',
+  '/gallery.html',
+  '/blog.html',
+  '/about.html',
+  '/contact.html',
+  '/css/style.css',
+  '/css/normalize.css',
+  '/css/utility.css',
+  '/css/responsive.css',
+  '/images/featured-reo-de-janeiro-brazil.jpg',
+  '/images/featured-north-bondi-australia.jpg',
+  '/images/featured-berlin-germany.jpg',
+  '/images/featured-khwaeng-wat-arun-thailand.jpg',
+  '/images/featured-rome-italy.jpg',
+  '/images/featured-fuvahmulah-maldives.jpg',
+  '/videos/video-section.mp4',
+  '/js/script.js',
+  '/fonts/fonts.css'
+];
 
-const assetUrls = [
-  'index.html',
-  'js/app.js',
-  'css/styles.css',
-  'offline.html'
-]
+// Install Service Worker
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(urlsToCache);
+    })
+  );
+});
 
-self.addEventListener('install', async event => {
-  const cache = await caches.open(staticCacheName)
-  await cache.addAll(assetUrls)
-})
+// Activate Service Worker
+self.addEventListener('activate', (event) => {
+  const cacheWhitelist = [CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (!cacheWhitelist.includes(cacheName)) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
 
-self.addEventListener('activate', async event => {
-  const cacheNames = await caches.keys()
-  await Promise.all(
-    cacheNames
-      .filter(name => name !== staticCacheName)
-      .filter(name => name !== dynamicCacheName)
-      .map(name => caches.delete(name))
-  )
-})
-
-self.addEventListener('fetch', event => {
-  const {request} = event
-
-  const url = new URL(request.url)
-  if (url.origin === location.origin) {
-    event.respondWith(cacheFirst(request))
-  } else {
-    event.respondWith(networkFirst(request))
-  }
-})
-
-
-async function cacheFirst(request) {
-  const cached = await caches.match(request)
-  return cached ?? await fetch(request)
-}
-
-async function networkFirst(request) {
-  const cache = await caches.open(dynamicCacheName)
-  try {
-    const response = await fetch(request)
-    await cache.put(request, response.clone())
-    return response
-  } catch (e) {
-    const cached = await cache.match(request)
-    return cached ?? await caches.match('/offline.html')
-  }
-}
+// Fetch Event - serve from cache first
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      return cachedResponse || fetch(event.request);
+    })
+  );
+});

@@ -1,11 +1,11 @@
 {
     "name": "TRIP_PWA",
     "short_name": "TRIP_PWA",
-    "theme_color": "green",
-    "background_color": "green",
+    "theme_color": "#ffffff",
+    "background_color": "#ffffff",
     "display": "standalone",
     "orientation": "portrait",
-    "start_url": ".",
+    "start_url": "/",
    "icons": [
     {
         "src": "/icons/app-icon-96-96.png",
