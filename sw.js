@@ -1,70 +1,53 @@
-const CACHE_NAME = 'tripboss-cache-v1';
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/gallery.html',
-  '/blog.html',
-  '/about.html',
-  '/contact.html',
-  '/offline.html', // Страница для отображения, если офлайн
-  '/css/style.css',
-  '/css/normalize.css',
-  '/css/utility.css',
-  '/css/responsive.css',
-  '/images/featured-reo-de-janeiro-brazil.jpg',
-  '/images/featured-north-bondi-australia.jpg',
-  '/images/featured-berlin-germany.jpg',
-  '/images/featured-khwaeng-wat-arun-thailand.jpg',
-  '/images/featured-rome-italy.jpg',
-  '/images/featured-fuvahmulah-maldives.jpg',
-  '/videos/video-section.mp4',
-  '/js/script.js',
-  '/fonts/fonts.css'
-];
+// This is the service worker with the combined offline experience (Offline page + Offline copy of pages)
 
-// Install Service Worker
-self.addEventListener('install', (event) => {
+const CACHE = "pwabuilder-offline-page";
+
+importScripts('https://storage.googleapis.com/workbox-cdn/releases/5.1.2/workbox-sw.js');
+
+// TODO: replace the following with the correct offline fallback page i.e.: const offlineFallbackPage = "offline.html";
+const offlineFallbackPage = "index.html";
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
+self.addEventListener('install', async (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(urlsToCache);
-    })
+    caches.open(CACHE)
+      .then((cache) => cache.add(offlineFallbackPage))
   );
 });
 
-// Activate Service Worker
-self.addEventListener('activate', (event) => {
-  const cacheWhitelist = [CACHE_NAME];
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (!cacheWhitelist.includes(cacheName)) {
-            return caches.delete(cacheName);  // Удаляем старые кэши
-          }
-        })
-      );
-    })
-  );
-});
+if (workbox.navigationPreload.isSupported()) {
+  workbox.navigationPreload.enable();
+}
 
-// Fetch Event - служит для обработки запросов, когда приложение работает офлайн
+workbox.routing.registerRoute(
+  new RegExp('/*'),
+  new workbox.strategies.StaleWhileRevalidate({
+    cacheName: CACHE
+  })
+);
+
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse; // Возвращаем кэшированный ресурс
-      }
-
-      // Если ресурса нет в кэше, пытаемся загрузить его из сети
-      return fetch(event.request).catch(() => {
-        // В случае отсутствия интернета, показываем офлайн-страницу
-        if (event.request.url.includes('.html')) {
-          return caches.match('/offline.html');
+  if (event.request.mode === 'navigate') {
+    event.respondWith((async () => {
+      try {
+        const preloadResp = await event.preloadResponse;
+        if (preloadResp) {
+          return preloadResp;
         }
-        return new Response('You are offline', {
-          headers: { 'Content-Type': 'text/plain' }
-        });
-      });
-    })
-  );
+
+        const networkResp = await fetch(event.request);
+        return networkResp;
+      } catch (error) {
+
+        const cache = await caches.open(CACHE);
+        const cachedResp = await cache.match(offlineFallbackPage);
+        return cachedResp;
+      }
+    })());
+  }
 });

@@ -12,11 +12,9 @@
         <link rel = "stylesheet" href = "css/utility.css">
         <link rel = "stylesheet" href = "css/style.css">
         <link rel = "stylesheet" href = "css/responsive.css">
-        <link rel="manifest" href="manifest.json">
-        <script src="/service-worker-registration.js"></script>
-
-
-    </head>
+        <link rel="manifest" href="/my_pwa/manifest.json">
+        <script src="/my_pwa/sw.js"></script>  
+     </head>
     <body>
         <!-- navbar  -->
         <nav class = "navbar">
@@ -326,6 +324,11 @@
             </div>
         </footer>
         <!-- end of footer -->
+        <script>
+            if (typeof navigator.serviceWorker !== 'undefined') {
+              navigator.serviceWorker.register('sw.js')
+            }
+          </script>
 
         <!-- js -->
         <script src = "js/script.js"></script>
