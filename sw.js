@@ -6,6 +6,7 @@ const urlsToCache = [
   '/blog.html',
   '/about.html',
   '/contact.html',
+  '/offline.html', // Страница для отображения, если офлайн
   '/css/style.css',
   '/css/normalize.css',
   '/css/utility.css',
@@ -38,7 +39,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (!cacheWhitelist.includes(cacheName)) {
-            return caches.delete(cacheName);
+            return caches.delete(cacheName);  // Удаляем старые кэши
           }
         })
       );
@@ -46,11 +47,24 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch Event - serve from cache first
+// Fetch Event - служит для обработки запросов, когда приложение работает офлайн
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      return cachedResponse || fetch(event.request);
+      if (cachedResponse) {
+        return cachedResponse; // Возвращаем кэшированный ресурс
+      }
+
+      // Если ресурса нет в кэше, пытаемся загрузить его из сети
+      return fetch(event.request).catch(() => {
+        // В случае отсутствия интернета, показываем офлайн-страницу
+        if (event.request.url.includes('.html')) {
+          return caches.match('/offline.html');
+        }
+        return new Response('You are offline', {
+          headers: { 'Content-Type': 'text/plain' }
+        });
+      });
     })
   );
 });
